@@ -23,6 +23,8 @@ class InterfaceController: WKInterfaceController {
     //======================
     let activityManager = CMMotionActivityManager()
     let pedometer = CMPedometer()
+    var isSubscribedToActivity = false
+    var isSubscribedToPedometer = false
     
     //======================
     // Lifecycle methods
@@ -34,7 +36,13 @@ class InterfaceController: WKInterfaceController {
     override func willActivate() {
         super.willActivate()
         print("Will activate called")
-        startActivityListener()
+        if !isSubscribedToActivity {
+            startActivityListener()
+        }
+        
+        if !isSubscribedToPedometer {
+            startPedometerListener()
+        }
     }
     
     override func didDeactivate() {
@@ -50,13 +58,22 @@ class InterfaceController: WKInterfaceController {
         activityManager.startActivityUpdates(to: OperationQueue.main) { (activity : CMMotionActivity?) in
             print("Activity update triggered")
             guard let activity = activity else { return }
-            DispatchQueue.main.async {
-                if activity.walking {
-                    print("walking")
-                    self.startPedometerListener()
-                }
+        
+            if activity.stationary {
+                print("stationary")
+            }
+            if activity.walking {
+                print("walking")
+            }
+            if activity.running {
+                print("running")
+            }
+            if activity.automotive {
+                print("driving")
             }
         }
+        
+        isSubscribedToActivity = true
     }
     
     //======================
@@ -67,14 +84,23 @@ class InterfaceController: WKInterfaceController {
             print("Starting to listen to pedometer updates")
             pedometer.startUpdates(from: Date()) { (data, err) in
                 print("Update sent")
+                if err != nil {
+                    print("There was an error requesting data from the pedometer: \(err!)")
+                }
+                
                 if let data = data {
+                    print("HERE")
                     self.updateSteps(data: data)
                     self.updateDistance(data: data)
                 }
             }
+            isSubscribedToPedometer = true
         }
     }
     
+    //======================
+    // UI Updates
+    //======================
     private func updateSteps(data : CMPedometerData) {
         //We always want a whole, positive number of steps
         let steps = data.numberOfSteps.uintValue
