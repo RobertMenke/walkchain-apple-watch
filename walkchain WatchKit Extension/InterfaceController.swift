@@ -21,6 +21,7 @@ class InterfaceController: WKInterfaceController {
     //======================
     // Instance variables
     //======================
+    let activityManager = CMMotionActivityManager()
     let pedometer = CMPedometer()
     
     //======================
@@ -32,7 +33,8 @@ class InterfaceController: WKInterfaceController {
     
     override func willActivate() {
         super.willActivate()
-        createPedometerListener()
+        print("Will activate called")
+        startActivityListener()
     }
     
     override func didDeactivate() {
@@ -42,11 +44,29 @@ class InterfaceController: WKInterfaceController {
     }
     
     //======================
+    // Activity Events
+    //======================
+    private func startActivityListener() {
+        activityManager.startActivityUpdates(to: OperationQueue.main) { (activity : CMMotionActivity?) in
+            print("Activity update triggered")
+            guard let activity = activity else { return }
+            DispatchQueue.main.async {
+                if activity.walking {
+                    print("walking")
+                    self.startPedometerListener()
+                }
+            }
+        }
+    }
+    
+    //======================
     // Pedometer Events
     //======================
-    private func createPedometerListener() {
-        if CMPedometer.isPaceAvailable() {
+    private func startPedometerListener() {
+        if CMPedometer.isPedometerEventTrackingAvailable() {
+            print("Starting to listen to pedometer updates")
             pedometer.startUpdates(from: Date()) { (data, err) in
+                print("Update sent")
                 if let data = data {
                     self.updateSteps(data: data)
                     self.updateDistance(data: data)
@@ -64,12 +84,12 @@ class InterfaceController: WKInterfaceController {
     private func updateDistance(data : CMPedometerData){
         //Distance is in meters
         if let distance = data.distance {
-            let milesWalked = metersToMiles(meters: distance)
+            let milesWalked = metersToMiles(meters: distance as! Double)
             distanceLabel.setText(String(format: "%.2f Miles", milesWalked))
         }
     }
     
-    private func metersToMiles(meters : NSNumber) -> Double {
-        return meters as! Double / 1609.344
+    private func metersToMiles(meters : Double) -> Double {
+        return meters / 1609.344
     }
 }
